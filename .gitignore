@@ -1,0 +1,4 @@
+easyocr_trainer/all_data/*
+easyocr_trainer/saved_models/*
+__pycache__
+.pyc

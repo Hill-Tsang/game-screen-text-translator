@@ -8,7 +8,8 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.optim as optim
 import torch.utils.data
-from torch.cuda.amp import autocast, GradScaler
+from torch.cuda.amp import autocast
+from torch.amp import GradScaler
 import numpy as np
 
 from utils import CTCLabelConverter, AttnLabelConverter, Averager
@@ -45,7 +46,7 @@ def train(opt, show_number = 2, amp=False):
     valid_loader = torch.utils.data.DataLoader(
         valid_dataset, batch_size=min(32, opt.batch_size),
         shuffle=True,  # 'True' to check training progress with validation function.
-        num_workers=int(opt.workers), prefetch_factor=512,
+        num_workers=int(opt.workers), prefetch_factor=None,  # Set to none  for 0 worker
         collate_fn=AlignCollate_valid, pin_memory=True)
     log.write(valid_dataset_log)
     print('-' * 80)
@@ -257,7 +258,7 @@ def train(opt, show_number = 2, amp=False):
                 head = f'{"Ground Truth":25s} | {"Prediction":25s} | Confidence Score & T/F'
                 predicted_result_log = f'{dashed_line}\n{head}\n{dashed_line}\n'
                 
-                #show_number = min(show_number, len(labels))
+                show_number = min(show_number, len(labels))
                 
                 start = random.randint(0,len(labels) - show_number )    
                 for gt, pred, confidence in zip(labels[start:start+show_number], preds[start:start+show_number], confidence_score[start:start+show_number]):

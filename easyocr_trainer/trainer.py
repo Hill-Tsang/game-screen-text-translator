@@ -1,0 +1,45 @@
+import os
+import torch.backends.cudnn as cudnn
+import yaml
+from train import train
+from utils import AttrDict
+import pandas as pd
+import easyocr
+
+cudnn.benchmark = True
+cudnn.deterministic = False
+
+def get_config(file_path):
+    with open(file_path, 'r', encoding="utf8") as stream:
+        opt = yaml.safe_load(stream)
+    opt = AttrDict(opt)
+    if opt.lang_char == 'None':
+        print("lang_char == None")
+        characters = ''
+        for data in opt['select_data'].split('-'):
+            csv_path = os.path.join(opt['train_data'], data, 'labels.csv')
+            df = pd.read_csv(csv_path, sep='^([^,]+),', engine='python', usecols=['filename', 'words'], keep_default_na=False)
+            all_char = ''.join(df['words'])
+            characters += ''.join(set(all_char))
+        characters = sorted(set(characters))
+        opt.character= ''.join(characters)
+    else:
+        print("lang_char != None")
+        if "ja" in opt.saved_model:
+            print(opt.saved_model)
+            reader = easyocr.Reader(['ja'], gpu=True)
+            opt.character = reader.character
+            print("length of opt.character: " + str(len(opt.character)))
+        elif "en" in opt.saved_model:
+            print(opt.saved_model)
+            reader = easyocr.Reader(['en'], gpu=True)
+            opt.character = reader.character
+            print("length of opt.character: " + str(len(opt.character)))
+        else:
+            opt.character = opt.number + opt.symbol + opt.lang_char
+            
+    os.makedirs(f'./saved_models/{opt.experiment_name}', exist_ok=True)
+    return opt
+
+opt = get_config("config_files/config.yaml")
+train(opt, amp=False)
