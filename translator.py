@@ -124,8 +124,9 @@ def translate():
     translated = translator.translate(jp_full_text)
     print(translated)
 
-    translated = GoogleTranslator(source='ja', target='en').translate(jp_full_text)
-    print(translated)
+    #translated = GoogleTranslator(source='ja', target='en').translate(jp_full_text)
+    #print(translated)
+    
     #jp_full_text = "\n".join(new_text_list)
     #translated = translator.translate(jp_full_text)
     #print(translated)
