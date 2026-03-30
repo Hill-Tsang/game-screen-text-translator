@@ -123,7 +123,9 @@ def translate():
     jp_full_text = " ".join(new_text_list)
     translated = translator.translate(jp_full_text)
     print(translated)
-    
+
+    translated = GoogleTranslator(source='ja', target='en').translate(jp_full_text)
+    print(translated)
     #jp_full_text = "\n".join(new_text_list)
     #translated = translator.translate(jp_full_text)
     #print(translated)
@@ -149,7 +151,7 @@ text_color = (0, 0, 0)
 
 reader = easyocr.Reader(['ja'], gpu=True)
 
-translator = GoogleTranslator(source='ja', target='zh-CN')
+translator = GoogleTranslator(source='ja', target='zh-TW')
 
 
 @capture.event
