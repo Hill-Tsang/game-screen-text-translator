@@ -1,0 +1,4 @@
+keyboard
+easyocr
+deep_translator
+windows_capture

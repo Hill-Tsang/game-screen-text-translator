@@ -6,6 +6,23 @@ from deep_translator import GoogleTranslator
 from windows_capture import WindowsCapture, Frame, InternalCaptureControl
 import csv
 from PIL import ImageFont, ImageDraw, Image
+import sys
+import os
+from functools import wraps
+import keyboard
+
+SHOW_CAPTURED_WINDOW = False
+TRANSLATE_EACH_WORD = False
+
+def time_it(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        end = time.perf_counter()
+        print(f"{func.__name__} took {end - start:.6f} seconds")
+        return result
+    return wrapper
 
 # Parse romaji csv into dict. E.g. dict["あ"] = a
 def load_romaji_csv(file_path):
@@ -37,31 +54,32 @@ def extract_text(img):
     new_text_list = [""]
 
     # Print the detected text and optionally the bounding boxes
-    old_tl = 0
+    old_br = 0
     for (bbox_a, text, prob) in result:
         (tl, tr, br, bl) = bbox_a
 
-        tl = (int(tl[0]), int(tl[1]))
-        br = (int(br[0]), int(br[1]))
+        tl = (int(tl[0]), int(tl[1])) # Top left xy
+        br = (int(br[0]), int(br[1])) # Bottom right xy
 
-        if tl[0] < old_tl:
+        if tl[0] < old_br:
             new_text_list.append(text)
         else:
             new_text_list[-1] = new_text_list[-1] + " " + text
-        old_tl = tl[0]
+        old_br = br[0]
 
         # Optional: Draw bounding boxes on the image
         #cv2.rectangle(img, tl, br, (0, 255, 0), 2)
         cv2.rectangle(img, tl, br, (0, 255, 0), -1)    # Filled rectangle
 
-        img = put_japanese_text(img, text, tl, font_path_example, font_size, text_color)
-        
-        # Draw captured screen
-        h, w = img.shape[:2]
-        new_w = 600
-        new_h = int(h * (new_w / w))
-        resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
-        cv2.imshow("Captured Window", resized)
+        if SHOW_CAPTURED_WINDOW:
+            img = put_japanese_text(img, text, tl, font_path_example, font_size, text_color)
+            
+            # Draw captured screen
+            h, w = img.shape[:2]
+            new_w = 600
+            new_h = int(h * (new_w / w))
+            resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_AREA)
+            cv2.imshow("Captured Window", resized)
 
 def put_japanese_text(image_np, text, point, font_path, font_size, color):
     """
@@ -100,29 +118,64 @@ def put_japanese_text(image_np, text, point, font_path, font_size, color):
 
     return image_bgr
 
+@time_it
 def translate():
+    global new_text_list
+    global previous_text_list
+
+    if not new_text_list or new_text_list == previous_text_list:
+        return
+
     for line in new_text_list:
         print(line)
         roma_line = ""
+
+        consonant = False
+
         for char in line:
-            roma_char = romaji_dict.get(char)
+            if char == "っ" or char == "ッ":
+                consonant = True
+                continue
+            
+            if char == "は":
+                if roma_line and roma_line[-1] != " ":
+                    roma_char = "wa"
+                else:
+                    roma_char = romaji_dict.get(char)
+            else:
+                roma_char = romaji_dict.get(char)
+            
             if roma_char is not None:
-                roma_line += romaji_dict[char]
+                if consonant:
+                    roma_line += romaji_dict[char][0]
+                    consonant = False
+
+                roma_line += roma_char
             else:
                 roma_line += char
 
         translated_line = ""
-        for word in line.split(" "):
-            translated_word = translator.translate(word)
-            translated_line = translated_line + translated_word + " "
+        if TRANSLATE_EACH_WORD:
+            for word in line.split(" "):
+                translated_word = translator.translate(word)
+                translated_line = translated_line + translated_word + " "
         
         print(roma_line)
-        print(translated_line)
+        if TRANSLATE_EACH_WORD:
+            print(translated_line)
         romaji_text_list.append(roma_line)
 
     jp_full_text = " ".join(new_text_list)
-    translated = translator.translate(jp_full_text)
-    print(translated)
+    try:
+        translated = translator.translate(jp_full_text)
+        print(translated)
+
+        #translated = translator.translate_batch(new_text_list)
+        #print(translated)
+    except:
+        print("Can't translate")
+
+    previous_text_list = new_text_list
 
     #translated = GoogleTranslator(source='ja', target='en').translate(jp_full_text)
     #print(translated)
@@ -133,49 +186,71 @@ def translate():
     print("---------------------------------")
     print("")
 
-window_title = "Projector - Source: GC573"
-romaji_file = "romaji.csv"
-
-capture = WindowsCapture(window_name=window_title)
-
 previous_text_list = []    # Previous extracted text separated by newline
 new_text_list = [""]    # New extracted text separated by newline
 romaji_text_list = []
 
 # Load japanese character and its romaji
-romaji_dict = load_romaji_csv(romaji_file)
+romaji_dict = load_romaji_csv("romaji.csv")
 
 # Parameters used for drawing extracted/translated text on image
 font_path_example = "C:/Windows/Fonts/meiryo.ttc"
 font_size = 60
 text_color = (0, 0, 0)
 
+print("Init EasyOCR reader")
 reader = easyocr.Reader(['ja'], gpu=True)
 
+print("Init translator")
 translator = GoogleTranslator(source='ja', target='zh-TW')
 
-
-@capture.event
-def on_frame_arrived(frame: Frame, capture_control: InternalCaptureControl):
-    global new_text_list
-    global previous_text_list
-
-    cropped_frame = crop_frame(frame)
-
-    img = np.array(cropped_frame.frame_buffer)
-    #frame.save_as_image("screenshot.png")
-    capture_control.stop() # Stop after one frame
-    
-    extract_text(img)
-
-    if new_text_list and new_text_list != previous_text_list:
+# Image file text extraction and translation
+if len(sys.argv) == 2:
+    if os.path.isfile(sys.argv[1]):
+        image = cv2.imread(sys.argv[1])
+        extract_text(image)
         translate()
-        previous_text_list = new_text_list
-            
-@capture.event
-def on_closed():
-    print("Capture Session Closed")
+        if SHOW_CAPTURED_WINDOW:
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+    elif os.path.isdir(sys.argv[1]):
+        for file in os.listdir(sys.argv[1]):
+            image = cv2.imread(os.path.join(sys.argv[1], file))
+            extract_text(image)
+            translate()
+            if SHOW_CAPTURED_WINDOW:
+                cv2.waitKey(0)
+                cv2.destroyAllWindows()
+            else:
+                print("Press Enter to continue...")
+                keyboard.wait("enter")
+    else:
+        print(f"Can't open image file: {sys.argv[1]}")
+# Runtime game screen text extraction and translation
+else:
+    window_title = "Projector - Source: GC573"
 
-while True:
-    capture.start()
-    time.sleep(0.5)
+    capture = WindowsCapture(window_name=window_title)
+
+    @capture.event
+    def on_frame_arrived(frame: Frame, capture_control: InternalCaptureControl):
+        global new_text_list
+        global previous_text_list
+
+        cropped_frame = crop_frame(frame)
+
+        img = np.array(cropped_frame.frame_buffer)
+        #frame.save_as_image("screenshot.png")
+        capture_control.stop() # Stop after one frame
+        
+        extract_text(img)
+
+        translate()
+                
+    @capture.event
+    def on_closed():
+        print("Capture Session Closed")
+
+    while True:
+        capture.start()
+        time.sleep(0.5)
