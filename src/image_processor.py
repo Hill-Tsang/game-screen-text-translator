@@ -6,9 +6,9 @@ from PIL import ImageFont, ImageDraw, Image
 
 class ImageProcessor():
     
-    def __init__(self, language):
+    def __init__(self, language, recog_network):
         print("Init Image processor")
-        self.reader = easyocr.Reader([language], gpu=True)
+        self.reader = easyocr.Reader([language], gpu=True, recog_network=recog_network)
         self.font_path = "C:/Windows/Fonts/meiryo.ttc"
         self.font_size = 60
         self.font_color = (0, 0, 0)

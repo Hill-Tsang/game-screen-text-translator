@@ -10,6 +10,8 @@ from windows_capture import WindowsCapture, Frame, InternalCaptureControl
 from src.translator import Translator
 from src.image_processor import ImageProcessor
 
+recog_network = "japanese_g2_trained"   # "standard" or "name of custom model"
+
 def time_it(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
@@ -52,7 +54,7 @@ def translate_text_on_image(img, image_processor, translator):
     print("---------------------------------")
     print("")
 
-image_processor = ImageProcessor("ja")
+image_processor = ImageProcessor("ja", recog_network)
 
 translator = Translator("ja", "zh-TW")
 
