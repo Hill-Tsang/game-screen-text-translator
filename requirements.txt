@@ -2,3 +2,7 @@ keyboard
 easyocr
 deep_translator
 windows_capture
+six
+pandas
+natsort
+nltk
