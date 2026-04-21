@@ -86,3 +86,12 @@ I included the trainer program from EasyOCR https://github.com/JaidedAI/EasyOCR 
 7. Copy the yaml and python file in custom_model to ~/.EasyOCR/model/user_network. Ensure the name of all these two files and the pth file in model folder are the same. Moreover, you may need to change the values in the yaml file.
 
 8. Update `recog_network` in image_text_translator.py to the name of your custom model.
+
+## Google cloud translator
+### Setup
+Refer to https://docs.cloud.google.com/translate/docs/setup for detailed steps.
+1. Create project in Google Cloud, take note of the project ID
+2. Enable Billing
+3. Enable Cloud Translation API
+4. Install and init gcloud CLI
+5. Create Application default credentials in gcloud CLI by running `gcloud auth application-default login`

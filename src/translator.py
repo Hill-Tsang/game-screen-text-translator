@@ -1,12 +1,13 @@
 import csv
 import sys
+import time
 from deep_translator import GoogleTranslator
+from concurrent.futures import ThreadPoolExecutor
 
 class Translator:
 
-    def __init__(self, source_language, target_language):
+    def __init__(self):
         print("Init Translator")
-        self.translator = GoogleTranslator(source=source_language, target=target_language)
         self.romaji = self.load_romaji_csv("romaji.csv")
 
     def load_romaji_csv(self, file_path):
@@ -47,18 +48,30 @@ class Translator:
 
         return romaji_text
 
-    def translate(self, text):
-        print(text)
-        print(self.translate_to_romaji(text))
-
+    def translate(self, source_language, target_language, text):
+        if source_language == "ja" and target_language == "romaji":
+            return self.translate_to_romaji(text)
+        
+        translator = GoogleTranslator(source=source_language, target=target_language)
         try:
-            print(self.translator.translate(text))
+            translated = translator.translate(text)
         except:
-            print("Warning: Could not translate")
+            translated = ""
+        return translated
+    
+    def batch_translate(self, source_language, target_language, texts):
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            results = list(executor.map(lambda text: self.translate(source_language, target_language, text), texts))
+        return results
 
 if __name__ == "__main__":
+    start_time = time.perf_counter()
+    
     if len(sys.argv) == 2:
-        translator = Translator("ja", "zh-TW")
-        translator.translate(sys.argv[1])
+        translator = Translator()
+        print(translator.translate("ja", "zh-TW", sys.argv[1]))
     else:
         print("Usage: python translator.py [Japanese words]")
+    
+    end_time = time.perf_counter()
+    print(f"Execution time: {end_time - start_time:.2f} seconds")
